@@ -49,6 +49,18 @@ This automation solves that problem by automatically:
 
 
 
+---
+
+## 📦 n8n Workflow
+
+The complete n8n automation workflow is available here:
+
+[Download n8n Workflow](workflow/ai-lead-management-automation.json)
+
+You can import this JSON file into n8n and customize the workflow for your own lead management process.
+
+
+
 ## 🏗️ Workflow Architecture
 
 ```text
