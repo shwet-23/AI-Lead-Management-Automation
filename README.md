@@ -23,6 +23,20 @@ This automation solves that problem by automatically:
 9. Updating the CRM email status
 
 ---
+## 📸 Screenshots
+
+### 🔄 Workflow Architecture
+![Workflow Architecture](screenshots/workflow.png)
+
+### 📊 AI Lead CRM
+![AI Lead CRM](screenshots/crm.png)
+
+### 📧 Automated Email
+![Automated Email](screenshots/automated-email.png)
+
+### ✅ Production Execution
+![Production Execution](screenshots/production-execution.png)
+
 
 ## 🏗️ Workflow Architecture
 
@@ -46,16 +60,12 @@ Gmail  Gmail   Gmail
 Update Update  Update
 Sheet  Sheet   Sheet
 
-## 📸 Screenshots
 
-### 🔄 Workflow Architecture
-![Workflow Architecture](screenshots/workflow.png)
 
-### 📊 AI Lead CRM
-![AI Lead CRM](screenshots/crm.png)
 
-### 📧 Automated Email
-![Automated Email](screenshots/automated-email.png)
 
-### ✅ Production Execution
-![Production Execution](screenshots/production-execution.png)
+
+
+
+
+
