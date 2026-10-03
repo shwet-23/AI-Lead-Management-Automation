@@ -45,7 +45,7 @@ This automation solves that problem by automatically:
 
 ### ✅ Production Execution
 
-![Production Execution](./screenshots/production-execution.png)
+![Production Execution](./screenshots/production-execution..png)
 
 
 
