@@ -48,14 +48,14 @@ Sheet  Sheet   Sheet
 
 ## 📸 Screenshots
 
-### Workflow Architecture
-![Workflow](screenshots/workflow.png)
+### 🔄 Workflow Architecture
+![Workflow Architecture](screenshots/workflow.png)
 
-### AI Lead CRM
-![CRM](screenshots/crm.png)
+### 📊 AI Lead CRM
+![AI Lead CRM](screenshots/crm.png)
 
-### Automated Email
-![Email](screenshots/automated-email.png)
+### 📧 Automated Email
+![Automated Email](screenshots/automated-email.png)
 
-### Production Execution
-![Production](screenshots/production-execution.png)
+### ✅ Production Execution
+![Production Execution](screenshots/production-execution.png)
