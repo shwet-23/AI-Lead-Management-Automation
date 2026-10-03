@@ -1,0 +1,1279 @@
+{
+  "name": "AI Lead Management Automation",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ai-lead",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "cc65e6a6-c51a-4ddc-8627-d2e236a38bf1",
+      "name": "Webhook",
+      "webhookId": "ee21df57-8374-4462-8a62-cb236dc8f516"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "=You are an AI Lead Qualification Agent.\n\nAnalyze the lead data provided below.\n\nLead Name: {{ $('Webhook').first().json.body.name }}\nEmail: {{ $('Webhook').first().json.body.email }}\nCompany: {{ $('Webhook').first().json.body.company }}\nPhone: {{ $('Webhook').first().json.body.phone }}\nRequirement: {{ $('Webhook').first().json.body.requirement }}\nBudget: {{ $('Webhook').first().json.body.budget }}\nTimeline: {{ $('Webhook').first().json.body.timeline }}\nLead Source: {{ $('Webhook').first().json.body.source }}\n\nCalculate the lead score from 0 to 100 using this scoring system:\n\n1. Budget = 30 points\n- Very high / enterprise budget = 25–30\n- Good commercial budget = 18–24\n- Moderate budget = 10–17\n- Low budget = 0–9\n\n2. Business requirement = 25 points\n- Complex AI/ML/automation/software project strongly matching our services = 20–25\n- Good software/data requirement = 13–19\n- Basic/simple requirement = 6–12\n- Very small or unclear requirement = 0–5\n\n3. Timeline / urgency = 20 points\n- Immediate / within 2 weeks = 17–20\n- Within 1 month = 13–16\n- 1–3 months = 8–12\n- More than 3 months = 0–7\n\n4. Potential business value = 15 points\n- Large business / strong commercial potential = 12–15\n- Medium business potential = 7–11\n- Small business potential = 3–6\n- Very low potential = 0–2\n\n5. Fit with our services = 10 points\n- Excellent fit = 9–10\n- Good fit = 6–8\n- Partial fit = 3–5\n- Poor fit = 0–2\n\nAdd the five category scores to get the final lead_score.\n\nClassification rules:\n- 80 to 100 = HOT\n- 50 to 79 = WARM\n- 0 to 49 = COLD\n\nPriority rules:\n- HOT = HIGH\n- WARM = MEDIUM\n- COLD = LOW\n\nImportant:\n- Do not invent lead information.\n- Use only the provided lead data.\n- The final lead_score must be an integer between 0 and 100.\n- lead_temperature MUST exactly match the score range.\n- priority MUST exactly match the lead_temperature.\n- Return ONLY valid JSON.\n- Do not use Markdown.\n- Do not include ```json.\n- Do not include any text before or after the JSON.\n\nReturn exactly this structure:\n\nBefore returning the result, assign points separately for each category.\n\nReturn ONLY valid JSON in exactly this format:\n\n{\n  \"budget_points\": 0,\n  \"requirement_points\": 0,\n  \"timeline_points\": 0,\n  \"business_value_points\": 0,\n  \"service_fit_points\": 0,\n  \"lead_score\": 0,\n  \"lead_temperature\": \"HOT\",\n  \"priority\": \"HIGH\",\n  \"ai_reason\": \"reason for the score\",\n  \"recommended_action\": \"recommended next action\"\n}\n\nIMPORTANT:\n- budget_points must be between 0 and 30\n- requirement_points must be between 0 and 25\n- timeline_points must be between 0 and 20\n- business_value_points must be between 0 and 15\n- service_fit_points must be between 0 and 10\n- The lead_score MUST be exactly:\n  budget_points + requirement_points + timeline_points + business_value_points + service_fit_points\n- Recalculate the sum before returning the JSON.\n- lead_temperature MUST match the score:\n  80-100 = HOT\n  50-79 = WARM\n  0-49 = COLD\n- priority MUST match:\n  HOT = HIGH\n  WARM = MEDIUM\n  COLD = LOW"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [
+        224,
+        0
+      ],
+      "id": "8403c648-dcf8-47b3-b359-5d9980026c66",
+      "name": "Message a model",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "credentials": {
+        "openAiApi": {
+          "id": null,
+          "name": "",
+          "__aiGatewayManaged": true
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const aiText = $json.output[0].content[0].text;\nconst aiResult = JSON.parse(aiText);\n\nconst lead = $('Webhook').first().json.body;\n\n// Calculate score ourselves\nconst lead_score =\n  Number(aiResult.budget_points) +\n  Number(aiResult.requirement_points) +\n  Number(aiResult.timeline_points) +\n  Number(aiResult.business_value_points) +\n  Number(aiResult.service_fit_points);\n\n// Determine temperature from score\nlet lead_temperature;\n\nif (lead_score >= 80) {\n  lead_temperature = \"HOT\";\n} else if (lead_score >= 50) {\n  lead_temperature = \"WARM\";\n} else {\n  lead_temperature = \"COLD\";\n}\n\n// Determine priority\nlet priority;\n\nif (lead_temperature === \"HOT\") {\n  priority = \"HIGH\";\n} else if (lead_temperature === \"WARM\") {\n  priority = \"MEDIUM\";\n} else {\n  priority = \"LOW\";\n}\n\nreturn [\n  {\n    json: {\n      lead_id: \"LEAD-\" + Date.now(),\n\n      name: lead.name,\n      email: lead.email,\n      company: lead.company,\n      phone: lead.phone,\n      requirement: lead.requirement,\n      budget: lead.budget,\n      timeline: lead.timeline,\n      lead_source: lead.source,\n\n      lead_score: lead_score,\n      lead_temperature: lead_temperature,\n      priority: priority,\n\n      ai_reason: aiResult.ai_reason,\n      recommended_action: aiResult.recommended_action,\n\n      email_status: \"Pending\",\n      created_at: new Date().toISOString()\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        592,
+        0
+      ],
+      "id": "30f4fc55-de22-413d-82c9-1511adfe0f28",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1JwJvodB18hR5D8M4FPwmt7xwrJrQ2Gicd5F6K0r8YPw",
+          "mode": "list",
+          "cachedResultName": "AI Lead CRM",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1JwJvodB18hR5D8M4FPwmt7xwrJrQ2Gicd5F6K0r8YPw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1JwJvodB18hR5D8M4FPwmt7xwrJrQ2Gicd5F6K0r8YPw/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Name": "={{ $json.name }}",
+            "Email": "={{ $json.email }}",
+            "Company": "={{ $json.company }}",
+            "Phone": "={{ $json.phone }}",
+            "Requirement": "={{ $json.requirement }}",
+            "Budget": "={{ $json.budget }}",
+            "Timeline": "={{ $json.timeline }}",
+            "Lead Source": "={{ $json.lead_source }}",
+            "Lead Score": "={{ $json.lead_score }}",
+            "Lead Temperature": "={{ $json.lead_temperature }}",
+            "Priority": "={{ $json.priority }}",
+            "AI Reason": "={{ $json.ai_reason }}",
+            "Recommended Action": "={{ $json.recommended_action }}",
+            "Email Status": "={{ $json.email_status }}",
+            "Created At": "={{ $json.created_at }}",
+            "Lead ID": "={{ $('Code in JavaScript').first().json.lead_id }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Lead ID",
+              "displayName": "Lead ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Company",
+              "displayName": "Company",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Phone",
+              "displayName": "Phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Requirement",
+              "displayName": "Requirement",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Budget",
+              "displayName": "Budget",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Timeline",
+              "displayName": "Timeline",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Lead Source",
+              "displayName": "Lead Source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Lead Score",
+              "displayName": "Lead Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Lead Temperature",
+              "displayName": "Lead Temperature",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Priority",
+              "displayName": "Priority",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "AI Reason",
+              "displayName": "AI Reason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Recommended Action",
+              "displayName": "Recommended Action",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Email Status",
+              "displayName": "Email Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Created At",
+              "displayName": "Created At",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        864,
+        0
+      ],
+      "id": "b5772ab1-ce89-4933-ba5a-ce37c87f3d21",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "PQrgrkTwWpe4i31L",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Code in JavaScript').first().json.email }}",
+        "subject": "Priority Discussion for Your AI Project",
+        "message": "=<p>Hi {{ $('Code in JavaScript').first().json.name }},</p>\n\n<p>Thank you for reaching out regarding your <strong>{{ $('Code in JavaScript').first().json.requirement }}</strong> project.</p>\n\n<p>Based on the requirements you've shared, we'd like to discuss your project with you as soon as possible.</p>\n\n<p><strong>Project Details:</strong></p>\n\n<ul>\n<li><strong>Company:</strong> {{ $('Code in JavaScript').first().json.company }}</li>\n<li><strong>Requirement:</strong> {{ $('Code in JavaScript').first().json.requirement }}</li>\n<li><strong>Budget:</strong> {{ $('Code in JavaScript').first().json.budget }}</li>\n<li><strong>Timeline:</strong> {{ $('Code in JavaScript').first().json.timeline }}</li>\n</ul>\n\n<p>We'd be happy to schedule a quick call to understand your requirements, discuss the solution, and plan the next steps.</p>\n\n<p>Please let us know a convenient time to connect.</p>\n\n<p>Best regards,<br>\n<strong>Shwet</strong><br>\nAI & Automation Solutions</p>",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1504,
+        -224
+      ],
+      "id": "f24b01ca-6a3f-4691-8fb9-342812f1b351",
+      "name": "Send a message",
+      "webhookId": "51b01962-afd7-497c-b405-5075bd76aa88",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "fe0dpXx4sGeI6G7C",
+          "name": "Gmail account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1JwJvodB18hR5D8M4FPwmt7xwrJrQ2Gicd5F6K0r8YPw",
+          "mode": "list",
+          "cachedResultName": "AI Lead CRM",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1JwJvodB18hR5D8M4FPwmt7xwrJrQ2Gicd5F6K0r8YPw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1JwJvodB18hR5D8M4FPwmt7xwrJrQ2Gicd5F6K0r8YPw/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Name": "={{ $('Code in JavaScript').first().json.name }}",
+            "Email": "={{ $('Code in JavaScript').first().json.email }}",
+            "Company": "={{ $('Code in JavaScript').first().json.company }}",
+            "Phone": "={{ $('Code in JavaScript').first().json.phone }}",
+            "Requirement": "={{ $('Code in JavaScript').first().json.requirement }}",
+            "Budget": "={{ $('Code in JavaScript').first().json.budget }}",
+            "Timeline": "={{ $('Code in JavaScript').first().json.timeline }}",
+            "Lead Source": "={{ $('Code in JavaScript').first().json.lead_source }}",
+            "Lead Score": "={{ $('Code in JavaScript').first().json.lead_score }}",
+            "Lead Temperature": "={{ $('Code in JavaScript').first().json.lead_temperature }}",
+            "Priority": "={{ $('Code in JavaScript').first().json.priority }}",
+            "AI Reason": "={{ $('Code in JavaScript').first().json.ai_reason }}",
+            "Recommended Action": "={{ $('Code in JavaScript').first().json.recommended_action }}",
+            "Email Status": "Sent",
+            "Created At": "={{ $('Code in JavaScript').first().json.created_at }}",
+            "Lead ID": "={{ $('Code in JavaScript').first().json.lead_id }}"
+          },
+          "matchingColumns": [
+            "Lead ID"
+          ],
+          "schema": [
+            {
+              "id": "Lead ID",
+              "displayName": "Lead ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Company",
+              "displayName": "Company",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Phone",
+              "displayName": "Phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Requirement",
+              "displayName": "Requirement",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Budget",
+              "displayName": "Budget",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Timeline",
+              "displayName": "Timeline",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Lead Source",
+              "displayName": "Lead Source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Lead Score",
+              "displayName": "Lead Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Lead Temperature",
+              "displayName": "Lead Temperature",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Priority",
+              "displayName": "Priority",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "AI Reason",
+              "displayName": "AI Reason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Recommended Action",
+              "displayName": "Recommended Action",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Email Status",
+              "displayName": "Email Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Created At",
+              "displayName": "Created At",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1872,
+        -224
+      ],
+      "id": "a9051ef8-56c1-416d-82c3-463336a98ea1",
+      "name": "Update row in sheet",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "PQrgrkTwWpe4i31L",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Code in JavaScript').first().json.lead_temperature }}",
+                    "rightValue": "HOT",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "a385d0ce-0a9a-4720-9c09-09f568774c63"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "HOT"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "94f39fbe-d51e-4b18-9ddc-3f40ea94c5a0",
+                    "leftValue": "={{ $('Code in JavaScript').first().json.lead_temperature }}",
+                    "rightValue": "WARM",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "WARM"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "9e5d86f1-44cf-4a06-a698-511b1a1af4da",
+                    "leftValue": "={{ $('Code in JavaScript').first().json.lead_temperature }}",
+                    "rightValue": "COLD",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "COLD"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        1104,
+        -16
+      ],
+      "id": "fa38f04d-900f-4c14-afd5-af4c357b2c4b",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Code in JavaScript').first().json.email }}",
+        "subject": "Regarding Your AI Project Inquiry",
+        "message": "=<p>Hi {{ $('Code in JavaScript').first().json.name }},</p>\n\n<p>Thank you for contacting us regarding your <strong>{{ $('Code in JavaScript').first().json.requirement }}</strong> project.</p>\n\n<p>We reviewed the information you provided and would be happy to discuss your requirements in more detail.</p>\n\n<p><strong>Project Details:</strong></p>\n\n<ul>\n<li><strong>Company:</strong> {{ $('Code in JavaScript').first().json.company }}</li>\n<li><strong>Requirement:</strong> {{ $('Code in JavaScript').first().json.requirement }}</li>\n<li><strong>Budget:</strong> {{ $('Code in JavaScript').first().json.budget }}</li>\n<li><strong>Timeline:</strong> {{ $('Code in JavaScript').first().json.timeline }}</li>\n</ul>\n\n<p>Could you share a convenient time for a short discussion? We can understand your requirements, discuss the possible approach, and suggest the next steps.</p>\n\n<p>Looking forward to speaking with you.</p>\n\n<p>Best regards,<br>\n<strong>Shwet</strong><br>\nAI & Automation Solutions</p>",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1504,
+        -32
+      ],
+      "id": "af12a0f3-b1b5-4247-9230-1e1cddca273c",
+      "name": "Send a message1",
+      "webhookId": "243fbcfd-c4a8-4a5b-b06a-42e7bbd3665d",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "fe0dpXx4sGeI6G7C",
+          "name": "Gmail account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1JwJvodB18hR5D8M4FPwmt7xwrJrQ2Gicd5F6K0r8YPw",
+          "mode": "list",
+          "cachedResultName": "AI Lead CRM",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1JwJvodB18hR5D8M4FPwmt7xwrJrQ2Gicd5F6K0r8YPw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1JwJvodB18hR5D8M4FPwmt7xwrJrQ2Gicd5F6K0r8YPw/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Name": "={{ $('Code in JavaScript').first().json.name }}",
+            "Email": "={{ $('Code in JavaScript').first().json.email }}",
+            "Company": "={{ $('Code in JavaScript').first().json.company }}",
+            "Phone": "={{ $('Code in JavaScript').first().json.phone }}",
+            "Requirement": "={{ $('Code in JavaScript').first().json.requirement }}",
+            "Budget": "={{ $('Code in JavaScript').first().json.budget }}",
+            "Timeline": "={{ $('Code in JavaScript').first().json.timeline }}",
+            "Lead Source": "={{ $('Code in JavaScript').first().json.lead_source }}",
+            "Lead Score": "={{ $('Code in JavaScript').first().json.lead_score }}",
+            "Lead Temperature": "={{ $('Code in JavaScript').first().json.lead_temperature }}",
+            "Priority": "={{ $('Code in JavaScript').first().json.priority }}",
+            "AI Reason": "={{ $('Code in JavaScript').first().json.ai_reason }}",
+            "Recommended Action": "={{ $('Code in JavaScript').first().json.recommended_action }}",
+            "Email Status": "Sent",
+            "Created At": "={{ $('Code in JavaScript').first().json.created_at }}",
+            "Lead ID": "={{ $('Code in JavaScript').first().json.lead_id }}"
+          },
+          "matchingColumns": [
+            "Lead ID"
+          ],
+          "schema": [
+            {
+              "id": "Lead ID",
+              "displayName": "Lead ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Company",
+              "displayName": "Company",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Phone",
+              "displayName": "Phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Requirement",
+              "displayName": "Requirement",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Budget",
+              "displayName": "Budget",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Timeline",
+              "displayName": "Timeline",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Lead Source",
+              "displayName": "Lead Source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Lead Score",
+              "displayName": "Lead Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Lead Temperature",
+              "displayName": "Lead Temperature",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Priority",
+              "displayName": "Priority",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "AI Reason",
+              "displayName": "AI Reason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Recommended Action",
+              "displayName": "Recommended Action",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Email Status",
+              "displayName": "Email Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Created At",
+              "displayName": "Created At",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1888,
+        -32
+      ],
+      "id": "20dffa3c-a343-4366-8638-3eacbcba48bc",
+      "name": "Update row in sheet1",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "PQrgrkTwWpe4i31L",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Code in JavaScript').first().json.email }}",
+        "subject": "Thank You for Your Project Inquiry",
+        "message": "=<p>Hi {{ $('Code in JavaScript').first().json.name }},</p>\n\n<p>Thank you for sharing your <strong>{{ $('Code in JavaScript').first().json.requirement }}</strong> requirement with us.</p>\n\n<p>We appreciate your interest and have noted the project details you provided.</p>\n\n<p><strong>Project Details:</strong></p>\n\n<ul>\n<li><strong>Company:</strong> {{ $('Code in JavaScript').first().json.company }}</li>\n<li><strong>Requirement:</strong> {{ $('Code in JavaScript').first().json.requirement }}</li>\n<li><strong>Timeline:</strong> {{ $('Code in JavaScript').first().json.timeline }}</li>\n</ul>\n\n<p>If your project requirements or timeline change, feel free to reach out. We'd be happy to discuss how we can help.</p>\n\n<p>Best regards,<br>\n<strong>Shwet</strong><br>\nAI & Automation Solutions</p>",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1504,
+        160
+      ],
+      "id": "78c09326-3940-4f4e-a237-0a6a32d4a296",
+      "name": "Send a message2",
+      "webhookId": "9e1c6496-85e0-4646-8566-03887072cbc1",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "fe0dpXx4sGeI6G7C",
+          "name": "Gmail account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1JwJvodB18hR5D8M4FPwmt7xwrJrQ2Gicd5F6K0r8YPw",
+          "mode": "list",
+          "cachedResultName": "AI Lead CRM",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1JwJvodB18hR5D8M4FPwmt7xwrJrQ2Gicd5F6K0r8YPw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1JwJvodB18hR5D8M4FPwmt7xwrJrQ2Gicd5F6K0r8YPw/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Name": "={{ $('Code in JavaScript').first().json.name }}",
+            "Email": "={{ $('Code in JavaScript').first().json.email }}",
+            "Company": "={{ $('Code in JavaScript').first().json.company }}",
+            "Phone": "={{ $('Code in JavaScript').first().json.phone }}",
+            "Requirement": "={{ $('Code in JavaScript').first().json.requirement }}",
+            "Budget": "={{ $('Code in JavaScript').first().json.budget }}",
+            "Timeline": "={{ $('Code in JavaScript').first().json.timeline }}",
+            "Lead Source": "={{ $('Code in JavaScript').first().json.lead_source }}",
+            "Lead Score": "={{ $('Code in JavaScript').first().json.lead_score }}",
+            "Lead Temperature": "={{ $('Code in JavaScript').first().json.lead_temperature }}",
+            "Priority": "={{ $('Code in JavaScript').first().json.priority }}",
+            "AI Reason": "={{ $('Code in JavaScript').first().json.ai_reason }}",
+            "Recommended Action": "={{ $('Code in JavaScript').first().json.recommended_action }}",
+            "Email Status": "Sent",
+            "Created At": "={{ $('Code in JavaScript').first().json.created_at }}",
+            "Lead ID": "={{ $('Code in JavaScript').first().json.lead_id }}"
+          },
+          "matchingColumns": [
+            "Lead ID"
+          ],
+          "schema": [
+            {
+              "id": "Lead ID",
+              "displayName": "Lead ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Company",
+              "displayName": "Company",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Phone",
+              "displayName": "Phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Requirement",
+              "displayName": "Requirement",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Budget",
+              "displayName": "Budget",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Timeline",
+              "displayName": "Timeline",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Lead Source",
+              "displayName": "Lead Source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Lead Score",
+              "displayName": "Lead Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Lead Temperature",
+              "displayName": "Lead Temperature",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Priority",
+              "displayName": "Priority",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "AI Reason",
+              "displayName": "AI Reason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Recommended Action",
+              "displayName": "Recommended Action",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Email Status",
+              "displayName": "Email Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Created At",
+              "displayName": "Created At",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1888,
+        160
+      ],
+      "id": "d629eb3c-2f8a-4633-8ddc-f43664d12b3f",
+      "name": "Update row in sheet2",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "PQrgrkTwWpe4i31L",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message": {
+      "main": [
+        [
+          {
+            "node": "Update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a message1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a message2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message1": {
+      "main": [
+        [
+          {
+            "node": "Update row in sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message2": {
+      "main": [
+        [
+          {
+            "node": "Update row in sheet2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "ac1e0349-40fa-448a-b86e-a6c6874c0b5d",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "146975a7257bbf5170c314899dec9161a3704a960df6aaa95fb8609946d862ad"
+  },
+  "nodeGroups": [],
+  "id": "7JbjPZOuuWEggCEz",
+  "tags": []
+}
