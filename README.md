@@ -26,16 +26,27 @@ This automation solves that problem by automatically:
 ## 📸 Screenshots
 
 ### 🔄 Workflow Architecture
-![Workflow Architecture](screenshots/workflow.png)
+
+![Workflow Architecture](./screenshots/workflow.png)
+
+
 
 ### 📊 AI Lead CRM
-![AI Lead CRM](screenshots/crm.png)
+
+![AI Lead CRM](./screenshots/crm.png)
+
+
 
 ### 📧 Automated Email
-![Automated Email](screenshots/automated-email.png)
+
+![Automated Email](./screenshots/automated-email.png)
+
+
 
 ### ✅ Production Execution
-![Production Execution](screenshots/production-execution.png)
+
+![Production Execution](./screenshots/production-execution.png)
+
 
 
 ## 🏗️ Workflow Architecture
