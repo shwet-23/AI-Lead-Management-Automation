@@ -45,3 +45,17 @@ Gmail  Gmail   Gmail
   ↓      ↓       ↓
 Update Update  Update
 Sheet  Sheet   Sheet
+
+## 📸 Screenshots
+
+### Workflow Architecture
+![Workflow](screenshots/workflow.png)
+
+### AI Lead CRM
+![CRM](screenshots/crm.png)
+
+### Automated Email
+![Email](screenshots/automated-email.png)
+
+### Production Execution
+![Production](screenshots/production-execution.png)
